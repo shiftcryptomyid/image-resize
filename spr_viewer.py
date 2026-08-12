@@ -422,11 +422,12 @@ def read_truecolor_sprite(file):
 
     image = Image.frombytes(
         "RGBA",
-        (
-            width,
-            height
-        ),
+        (width, height),
         bytes(rgba_data)
+    )
+
+    image = image.transpose(
+        Image.Transpose.FLIP_TOP_BOTTOM
     )
 
     return image
