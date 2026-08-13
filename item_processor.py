@@ -2,6 +2,10 @@ from pathlib import Path
 
 from PIL import Image
 
+from card_processor import (
+    create_collection_card
+)
+
 
 # ============================================================
 # KONFIGURASI DEFAULT
@@ -117,7 +121,11 @@ BACKGROUND_PRESETS = {
     "WHITE": (255, 255, 255, 255),
     "BLACK": (0, 0, 0, 255),
     "TRANSPARENT": None,
+
+    # Khusus Collection 100x100
+    "CARD": "CARD",
 }
+
 
 def get_background(background):
     """
@@ -630,6 +638,85 @@ def process_item(
     if not isinstance(image, Image.Image):
         raise TypeError(
             "image harus berupa PIL.Image.Image."
+        )
+        
+    # ========================================================
+    # CARD MODE
+    # ========================================================
+
+    if (
+        isinstance(background, str)
+        and background.upper() == "CARD"
+    ):
+
+        target_width, target_height = (
+            resolve_size(size)
+        )
+
+        # ----------------------------------------------------
+        # CARD hanya untuk 100x100
+        # ----------------------------------------------------
+
+        if (
+            target_width != 100
+            or target_height != 100
+        ):
+            raise ValueError(
+                "Background CARD hanya tersedia "
+                "untuk ukuran 100x100."
+            )
+
+        # ----------------------------------------------------
+        # Resize image terlebih dahulu.
+        #
+        # Maksimal 60x60 sesuai desain collection card.
+        # ----------------------------------------------------
+
+        working_image = image.convert(
+            "RGBA"
+        )
+
+        source_width = (
+            working_image.width
+        )
+
+        source_height = (
+            working_image.height
+        )
+
+        new_width, new_height = (
+            calculate_fit_size(
+                source_width,
+                source_height,
+                60,
+                60,
+                allow_upscale=allow_upscale
+            )
+        )
+
+        resized_image = resize_image(
+            working_image,
+            new_width,
+            new_height,
+            get_resize_method(
+                resize_method
+            )
+        )
+
+        # ----------------------------------------------------
+        # Buat CARD
+        # ----------------------------------------------------
+
+        return create_collection_card(
+            resized_image,
+            output_size=(
+                target_width,
+                target_height
+            ),
+            max_image_size=(
+                60,
+                60
+            )
         )
 
     # ========================================================

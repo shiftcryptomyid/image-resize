@@ -9,6 +9,7 @@ from item_processor import (
     RESIZE_METHODS,
     BACKGROUND_PRESETS,
     get_resize_method,
+    resolve_size,
 )
 
 
@@ -535,6 +536,22 @@ def build_process_controls(
         pady=8
     )
 
+    # ========================================================
+    # BACKGROUND
+    # ========================================================
+
+    background_label = tk.Label(
+        controls_frame,
+        text="BACKGROUND"
+    )
+
+    background_label.grid(
+        row=0,
+        column=4,
+        padx=(20, 5),
+        pady=8
+    )
+
     background_menu = tk.OptionMenu(
         controls_frame,
         background_var,
@@ -552,6 +569,141 @@ def build_process_controls(
         pady=8
     )
 
+    background_menu.config(
+        width=12
+    )
+
+    background_menu.grid(
+        row=0,
+        column=5,
+        padx=5,
+        pady=8
+    )
+    
+    # ========================================================
+    # UPDATE BACKGROUND OPTIONS
+    # ========================================================
+
+    def update_background_options(
+        selected_size
+    ):
+        """
+        Mengatur pilihan background berdasarkan ukuran.
+
+        CARD hanya tersedia untuk 100x100.
+        """
+
+        # ----------------------------------------------------
+        # Ambil menu internal Tkinter
+        # ----------------------------------------------------
+
+        menu = (
+            background_menu["menu"]
+        )
+
+        menu.delete(
+            0,
+            "end"
+        )
+
+        # ----------------------------------------------------
+        # Tentukan apakah CARD boleh digunakan
+        # ----------------------------------------------------
+
+        try:
+
+            size_width, size_height = (
+                resolve_size(
+                    selected_size
+                )
+            )
+
+        except Exception:
+
+            size_width = 0
+            size_height = 0
+
+        is_card_size = (
+            size_width == 100
+            and size_height == 100
+        )
+
+        # ----------------------------------------------------
+        # Buat daftar background
+        # ----------------------------------------------------
+
+        options = []
+
+        for name in BACKGROUND_PRESETS.keys():
+
+            if (
+                name == "CARD"
+                and not is_card_size
+            ):
+                continue
+
+            options.append(
+                name
+            )
+
+        # ----------------------------------------------------
+        # Pastikan background saat ini masih valid
+        # ----------------------------------------------------
+
+        current_background = (
+            background_var.get()
+        )
+
+        if (
+            current_background
+            not in options
+        ):
+
+            if "WHITE" in options:
+
+                background_var.set(
+                    "WHITE"
+                )
+
+            elif options:
+
+                background_var.set(
+                    options[0]
+                )
+
+        # ----------------------------------------------------
+        # Masukkan pilihan ke menu
+        # ----------------------------------------------------
+
+        for option in options:
+
+            menu.add_command(
+                label=option,
+                command=lambda value=option:
+                    background_var.set(
+                        value
+                    )
+            )
+
+
+    # ========================================================
+    # SIZE CHANGE CALLBACK
+    # ========================================================
+
+    def on_size_changed(
+        *args
+    ):
+        update_background_options(
+            size_var.get()
+        )
+
+
+    size_var.trace_add(
+        "write",
+        on_size_changed
+    )
+    
+    
     # ========================================================
     # RESPONSIVE
     # ========================================================
