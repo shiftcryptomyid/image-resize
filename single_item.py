@@ -3,7 +3,13 @@ from tkinter import messagebox
 
 from PIL import Image, ImageTk
 
-from item_processor import process_item
+from item_processor import (
+    process_item,
+    SIZE_PRESETS,
+    RESIZE_METHODS,
+    BACKGROUND_PRESETS,
+    get_resize_method,
+)
 
 
 # ============================================================
@@ -24,45 +30,23 @@ COMPARISON_PREVIEW_SIZE = 24
 # Preview original
 ORIGINAL_PREVIEW_SIZE = 150
 
-RESIZE_METHODS = (
-    "NEAREST",
-    "BOX",
-    "BILINEAR",
-    "BICUBIC",
-    "LANCZOS",
-)
+
+# ============================================================
+# DEFAULT PROCESS SETTINGS
+# ============================================================
+
+DEFAULT_SIZE_PRESET = "24x24"
+
+DEFAULT_RESIZE_METHOD = "LANCZOS"
+
+DEFAULT_BACKGROUND = "PINK"
 
 
 # ============================================================
 # MAP RESIZE METHOD
 # ============================================================
 
-def get_resize_method(
-    method_name
-):
-    """
-    Mengubah nama metode menjadi
-    Image.Resampling milik Pillow.
-    """
-
-    methods = {
-        "NEAREST": Image.Resampling.NEAREST,
-        "BOX": Image.Resampling.BOX,
-        "BILINEAR": Image.Resampling.BILINEAR,
-        "BICUBIC": Image.Resampling.BICUBIC,
-        "LANCZOS": Image.Resampling.LANCZOS,
-    }
-
-    if method_name not in methods:
-        raise ValueError(
-            f"Resize method tidak dikenal: "
-            f"{method_name}"
-        )
-
-    return methods[
-        method_name
-    ]
-
+#fungsi itu sudah menjadi bagian dari engine.
 
 # ============================================================
 # CREATE PREVIEW
@@ -168,6 +152,430 @@ def create_comparison_images(
 
 
 # ============================================================
+# PROCESS SELECTED IMAGE
+# ============================================================
+
+# ============================================================
+# PROCESS SELECTED IMAGE
+# ============================================================
+
+def process_selected_image(
+    source_image,
+    size,
+    method,
+    background
+):
+    """
+    Memproses source image berdasarkan pilihan:
+
+        SIZE
+        RESIZE METHOD
+        BACKGROUND
+    """
+
+    result = process_item(
+        source_image,
+        size=size,
+        background=background,
+        resize_method=method,
+        allow_upscale=False,
+        mode="ALPHA"
+    )
+
+    return result
+    
+
+# ============================================================
+# CENTER WINDOW
+# ============================================================
+
+def center_window(
+    window,
+    parent
+):
+    """
+    Menempatkan window di tengah terhadap parent window.
+    """
+
+    window.update_idletasks()
+
+    parent_x = parent.winfo_rootx()
+    parent_y = parent.winfo_rooty()
+
+    parent_width = parent.winfo_width()
+    parent_height = parent.winfo_height()
+
+    window_width = window.winfo_width()
+    window_height = window.winfo_height()
+
+    x = (
+        parent_x
+        + (parent_width - window_width) // 2
+    )
+
+    y = (
+        parent_y
+        + (parent_height - window_height) // 2
+    )
+
+    window.geometry(
+        f"+{x}+{y}"
+    )
+    
+
+# ============================================================
+# SHOW PROCESSED RESULT
+# ============================================================
+
+def show_processed_result(
+    parent,
+    result_image,
+    size,
+    method
+):
+    """
+    Menampilkan hasil Process final.
+
+    Ini bukan Comparison.
+    Hanya menampilkan satu hasil berdasarkan
+    pilihan SIZE dan RESIZE METHOD.
+    """
+
+    result_window = tk.Toplevel(
+        parent
+    )
+
+    result_window.title(
+        "Processed Result"
+    )
+
+    result_window.geometry(
+        "400x450"
+    )
+
+    result_window.minsize(
+        350,
+        400
+    )
+
+    # ========================================================
+    # TITLE
+    # ========================================================
+
+    title_label = tk.Label(
+        result_window,
+        text="PROCESSED RESULT",
+        font=(
+            "Arial",
+            14,
+            "bold"
+        )
+    )
+
+    title_label.pack(
+        pady=12
+    )
+
+    # ========================================================
+    # INFO
+    # ========================================================
+
+    info_label = tk.Label(
+        result_window,
+        text=(
+            f"Size : "
+            f"{result_image.width} × "
+            f"{result_image.height}\n"
+            f"Method : {method}\n"
+            f"Mode : ALPHA"
+        ),
+        justify="center"
+    )
+
+    info_label.pack(
+        pady=5
+    )
+
+    # ========================================================
+    # PREVIEW
+    #
+    # Hanya untuk tampilan.
+    # Image sebenarnya tetap menggunakan ukuran
+    # hasil process.
+    # ========================================================
+
+    preview_size = 240
+
+    preview_image = result_image.copy()
+
+    preview_image = preview_image.resize(
+        (
+            preview_size,
+            preview_size
+        ),
+        Image.Resampling.NEAREST
+    )
+
+    photo = ImageTk.PhotoImage(
+        preview_image
+    )
+
+    image_label = tk.Label(
+        result_window,
+        image=photo,
+        relief="groove",
+        bd=1
+    )
+
+    image_label.image = photo
+
+    image_label.pack(
+        pady=15
+    )
+
+    # ========================================================
+    # CLOSE
+    # ========================================================
+
+    close_button = tk.Button(
+        result_window,
+        text="Close",
+        width=15,
+        command=result_window.destroy
+    )
+
+    close_button.pack(
+        pady=10
+    )
+    
+    
+    # ========================================================
+    # CENTER RESULT WINDOW
+    # ========================================================
+
+    center_window(
+        result_window,
+        parent
+    )
+
+# ============================================================
+# PROCESS BUTTON CALLBACK
+# ============================================================
+
+# ============================================================
+# PROCESS BUTTON CALLBACK
+# ============================================================
+
+def on_process(
+    parent,
+    source_image,
+    size_var,
+    method_var,
+    background_var
+):
+    """
+    Callback tombol Process.
+    """
+
+    try:
+
+        selected_size = (
+            size_var.get()
+        )
+
+        selected_method = (
+            method_var.get()
+        )
+
+        selected_background = (
+            background_var.get()
+        )
+
+        result_image = (
+            process_selected_image(
+                source_image,
+                selected_size,
+                selected_method,
+                selected_background
+            )
+        )
+
+        show_processed_result(
+            parent,
+            result_image,
+            selected_size,
+            selected_method
+        )
+
+    except Exception as error:
+
+        messagebox.showerror(
+            "Process Error",
+            str(error),
+            parent=parent
+        )
+        
+
+# ============================================================
+# PROCESS CONTROLS
+# ============================================================
+
+# ============================================================
+# PROCESS CONTROLS
+# ============================================================
+
+def build_process_controls(
+    parent,
+    size_var,
+    method_var,
+    background_var
+):
+    """
+    Membuat kontrol:
+
+        SIZE
+        RESIZE METHOD
+        BACKGROUND
+
+    Kontrol ini hanya mengatur konfigurasi.
+    Engine image tetap berada di item_processor.py.
+    """
+
+    controls_frame = tk.Frame(
+        parent,
+        relief="groove",
+        bd=1
+    )
+
+    controls_frame.pack(
+        fill="x",
+        padx=20,
+        pady=8
+    )
+
+    # ========================================================
+    # SIZE
+    # ========================================================
+
+    size_label = tk.Label(
+        controls_frame,
+        text="SIZE"
+    )
+
+    size_label.grid(
+        row=0,
+        column=0,
+        padx=(10, 5),
+        pady=8
+    )
+
+    size_menu = tk.OptionMenu(
+        controls_frame,
+        size_var,
+        *SIZE_PRESETS.keys()
+    )
+
+    size_menu.config(
+        width=12
+    )
+
+    size_menu.grid(
+        row=0,
+        column=1,
+        padx=5,
+        pady=8
+    )
+
+    # ========================================================
+    # RESIZE METHOD
+    # ========================================================
+
+    method_label = tk.Label(
+        controls_frame,
+        text="RESIZE METHOD"
+    )
+
+    method_label.grid(
+        row=0,
+        column=2,
+        padx=(20, 5),
+        pady=8
+    )
+
+    method_menu = tk.OptionMenu(
+        controls_frame,
+        method_var,
+        *RESIZE_METHODS
+    )
+
+    method_menu.config(
+        width=12
+    )
+
+    method_menu.grid(
+        row=0,
+        column=3,
+        padx=5,
+        pady=8
+    )
+
+    # ========================================================
+    # BACKGROUND
+    # ========================================================
+
+    background_label = tk.Label(
+        controls_frame,
+        text="BACKGROUND"
+    )
+
+    background_label.grid(
+        row=0,
+        column=4,
+        padx=(20, 5),
+        pady=8
+    )
+
+    background_menu = tk.OptionMenu(
+        controls_frame,
+        background_var,
+        *BACKGROUND_PRESETS.keys()
+    )
+
+    background_menu.config(
+        width=12
+    )
+
+    background_menu.grid(
+        row=0,
+        column=5,
+        padx=5,
+        pady=8
+    )
+
+    # ========================================================
+    # RESPONSIVE
+    # ========================================================
+
+    controls_frame.columnconfigure(
+        1,
+        weight=1
+    )
+
+    controls_frame.columnconfigure(
+        3,
+        weight=1
+    )
+
+    controls_frame.columnconfigure(
+        5,
+        weight=1
+    )
+
+    return controls_frame
+
+
+
+# ============================================================
 # SINGLE ITEM WINDOW
 # ============================================================
 
@@ -201,6 +609,23 @@ def open_single_item(
     source_image = selected_source[
         "image"
     ]
+    
+    # --------------------------------------------------------
+    # PROCESS SETTINGS
+    # --------------------------------------------------------
+
+    size_var = tk.StringVar(
+        value=DEFAULT_SIZE_PRESET
+    )
+
+    method_var = tk.StringVar(
+        value=DEFAULT_RESIZE_METHOD
+    )
+    
+    background_var = tk.StringVar(
+        value=DEFAULT_BACKGROUND
+    )
+    
 
     # --------------------------------------------------------
     # WINDOW
@@ -261,6 +686,38 @@ def open_single_item(
 
     info_label.pack(
         pady=5
+    )
+    
+    # ========================================================
+    # PROCESS CONTROLS
+    # ========================================================
+
+    build_process_controls(
+        window,
+        size_var,
+        method_var,
+        background_var
+    )
+    
+    # ========================================================
+    # PROCESS BUTTON
+    # ========================================================
+
+    process_button = tk.Button(
+        window,
+        text="Process",
+        width=15,
+        command=lambda: on_process(
+            window,
+            source_image,
+            size_var,
+            method_var,
+            background_var
+        )
+    )
+
+    process_button.pack(
+        pady=8
     )
 
     # ========================================================

@@ -22,6 +22,259 @@ DEFAULT_RESIZE_METHOD = (
 
 
 # ============================================================
+# SIZE PRESETS
+# ============================================================
+
+SIZE_PRESETS = {
+    "24x24": (24, 24),
+    "60x60": (60, 60),
+    "100x100": (100, 100),
+}
+
+# ============================================================
+# RESIZE METHODS
+# ============================================================
+
+RESIZE_METHODS = {
+    "NEAREST": Image.Resampling.NEAREST,
+    "BOX": Image.Resampling.BOX,
+    "BILINEAR": Image.Resampling.BILINEAR,
+    "BICUBIC": Image.Resampling.BICUBIC,
+    "LANCZOS": Image.Resampling.LANCZOS,
+}
+
+def get_resize_method(method_name):
+    """
+    Mengambil metode resize.
+
+    Mendukung dua format:
+
+    Format baru:
+        "LANCZOS"
+        "BICUBIC"
+        "BILINEAR"
+        "BOX"
+        "NEAREST"
+
+    Format lama:
+        Image.Resampling.LANCZOS
+        Image.Resampling.BICUBIC
+        dst.
+    """
+
+    # ========================================================
+    # FORMAT PILLOW LANGSUNG
+    #
+    # Kompatibilitas dengan kode lama.
+    #
+    # Contoh:
+    #     Image.Resampling.LANCZOS
+    # ========================================================
+
+    if isinstance(
+        method_name,
+        Image.Resampling
+    ):
+        return method_name
+
+    # ========================================================
+    # FORMAT STRING
+    #
+    # Contoh:
+    #     "LANCZOS"
+    # ========================================================
+
+    if isinstance(method_name, str):
+
+        method_name = method_name.upper()
+
+        if method_name not in RESIZE_METHODS:
+            raise ValueError(
+                f"Resize method tidak dikenal: "
+                f"{method_name}"
+            )
+
+        return RESIZE_METHODS[
+            method_name
+        ]
+
+    # ========================================================
+    # FORMAT TIDAK DIDUKUNG
+    # ========================================================
+
+    raise TypeError(
+        "resize method harus berupa "
+        "nama string atau Image.Resampling."
+    )
+
+
+# ============================================================
+# BACKGROUND PRESETS
+# ============================================================
+
+BACKGROUND_PRESETS = {
+    "PINK": (255, 0, 255, 255),
+    "WHITE": (255, 255, 255, 255),
+    "BLACK": (0, 0, 0, 255),
+    "TRANSPARENT": None,
+}
+
+def get_background(background):
+    """
+    Mengambil warna background berdasarkan nama preset.
+
+    Bisa juga menerima tuple RGB/RGBA secara langsung.
+
+    Contoh:
+
+        get_background("PINK")
+
+    atau:
+
+        get_background((255, 128, 0, 255))
+    """
+
+    if background is None:
+        return None
+
+    if isinstance(background, str):
+
+        background_name = background.upper()
+
+        if background_name not in BACKGROUND_PRESETS:
+            raise ValueError(
+                f"Background tidak dikenal: "
+                f"{background_name}"
+            )
+
+        return BACKGROUND_PRESETS[
+            background_name
+        ]
+
+    if isinstance(background, tuple):
+
+        if len(background) not in (3, 4):
+            raise ValueError(
+                "Background tuple harus "
+                "berisi 3 atau 4 nilai."
+            )
+
+        return background
+
+    raise TypeError(
+        "Background harus berupa "
+        "nama preset atau tuple RGB/RGBA."
+    )
+
+# ============================================================
+# SIZE RESOLVER
+# ============================================================
+
+def resolve_size(size):
+    """
+    Mengubah ukuran menjadi tuple:
+
+        (width, height)
+
+    Mendukung:
+
+        "24x24"
+        "60x60"
+        "100x100"
+
+    Custom:
+
+        (32, 48)
+
+    Dan format lama:
+
+        24
+        60
+        100
+    """
+
+    # ========================================================
+    # FORMAT LAMA
+    #
+    # Contoh:
+    #     size=24
+    #
+    # Dianggap sebagai:
+    #     24 x 24
+    # ========================================================
+
+    if isinstance(size, int):
+
+        if size <= 0:
+            raise ValueError(
+                "Size harus lebih besar dari 0."
+            )
+
+        return (
+            size,
+            size
+        )
+
+    # ========================================================
+    # STRING PRESET
+    #
+    # Contoh:
+    #     "24x24"
+    # ========================================================
+
+    if isinstance(size, str):
+
+        size_name = size.lower()
+
+        if size_name not in SIZE_PRESETS:
+            raise ValueError(
+                f"Size preset tidak dikenal: "
+                f"{size}"
+            )
+
+        return SIZE_PRESETS[
+            size_name
+        ]
+
+    # ========================================================
+    # CUSTOM SIZE
+    #
+    # Contoh:
+    #     (32, 48)
+    # ========================================================
+
+    if isinstance(size, tuple):
+
+        if len(size) != 2:
+            raise ValueError(
+                "Custom size harus "
+                "berisi (width, height)."
+            )
+
+        width, height = size
+
+        if width <= 0 or height <= 0:
+            raise ValueError(
+                "Width dan height harus "
+                "lebih besar dari 0."
+            )
+
+        return (
+            int(width),
+            int(height)
+        )
+
+    # ========================================================
+    # FORMAT TIDAK DIDUKUNG
+    # ========================================================
+
+    raise TypeError(
+        "Size harus berupa integer, "
+        "nama preset, atau tuple "
+        "(width, height)."
+    )
+
+# ============================================================
 # NORMALIZE BACKGROUND
 # ============================================================
 
@@ -123,46 +376,39 @@ def flatten_transparency(
 # ============================================================
 
 def calculate_fit_size(
-    width,
-    height,
+    source_width,
+    source_height,
     target_width,
     target_height,
     allow_upscale=False
 ):
     """
-    Menghitung ukuran baru secara proporsional.
+    Menghitung ukuran image baru dengan
+    mempertahankan aspect ratio.
 
-    allow_upscale=False:
-        Image kecil tidak diperbesar.
+    Jika allow_upscale=False:
+        image tidak akan diperbesar.
 
-    allow_upscale=True:
-        Image boleh diperbesar.
+    Jika allow_upscale=True:
+        image boleh diperbesar.
     """
 
-    if width <= 0 or height <= 0:
-
+    if source_width <= 0 or source_height <= 0:
         raise ValueError(
-            "Ukuran image tidak valid."
+            "Ukuran source image tidak valid."
         )
 
-    if target_width <= 0:
+    if target_width <= 0 or target_height <= 0:
         raise ValueError(
-            "Target width harus lebih besar "
-            "dari 0."
-        )
-
-    if target_height <= 0:
-        raise ValueError(
-            "Target height harus lebih besar "
-            "dari 0."
+            "Ukuran target tidak valid."
         )
 
     scale_x = (
-        target_width / width
+        target_width / source_width
     )
 
     scale_y = (
-        target_height / height
+        target_height / source_height
     )
 
     scale = min(
@@ -170,8 +416,8 @@ def calculate_fit_size(
         scale_y
     )
 
+    # Jangan upscale jika tidak diizinkan.
     if not allow_upscale:
-
         scale = min(
             scale,
             1.0
@@ -179,16 +425,12 @@ def calculate_fit_size(
 
     new_width = max(
         1,
-        round(
-            width * scale
-        )
+        round(source_width * scale)
     )
 
     new_height = max(
         1,
-        round(
-            height * scale
-        )
+        round(source_height * scale)
     )
 
     return (
@@ -315,123 +557,215 @@ def center_image(
 # ============================================================
 
 def process_item(
-    source_image,
-    size=DEFAULT_SIZE,
-    background=DEFAULT_BACKGROUND,
-    resize_method=DEFAULT_RESIZE_METHOD,
+    image,
+    size="24x24",
+    resize_method="LANCZOS",
+    background="PINK",
+    mode="ALPHA",
     allow_upscale=False,
-    flatten_before_resize=True
+    flatten_before_resize=None
 ):
     """
-    Engine utama pemrosesan image.
+    Memproses image menjadi ukuran target.
 
-    Parameter
-    ---------
+    Parameter:
 
-    source_image:
-        PIL.Image.
+        image
+            PIL Image sebagai source.
 
-    size:
-        Ukuran canvas output.
-        Contoh:
-            24
-            100
+        size
+            Bisa berupa:
+                "24x24"
+                "60x60"
+                "100x100"
 
-    background:
-        Warna background.
+            atau custom:
+                (32, 32)
 
-        Contoh:
-            (255, 0, 255)
+        resize_method
+            Bisa berupa:
+                "NEAREST"
+                "BOX"
+                "BILINEAR"
+                "BICUBIC"
+                "LANCZOS"
 
-        atau:
+        background
+            Bisa berupa:
+                "PINK"
+                "WHITE"
+                "BLACK"
+                "TRANSPARENT"
 
-            (255, 255, 255, 255)
+            atau tuple RGB/RGBA.
 
-        atau:
+        mode
+            "ALPHA"
+                Mempertahankan transparency.
 
-            None
+            "FLATTEN"
+                Transparency diratakan ke
+                background sebelum resize.
 
-    resize_method:
-        Metode resize PIL.
+        allow_upscale
+            False:
+                Image yang lebih kecil dari
+                target tidak diperbesar.
 
-    allow_upscale:
-        False = image kecil tidak diperbesar.
+            True:
+                Image boleh diperbesar.
 
-    flatten_before_resize:
-        True:
-            transparency dikompositkan ke
-            background sebelum resize.
+        flatten_before_resize
+            Parameter lama untuk kompatibilitas
+            dengan kode yang sudah ada.
 
-        False:
-            transparency dipertahankan selama
-            resize.
-
-    Return
-    ------
-
-    PIL.Image RGBA
+            True  -> mode FLATTEN
+            False -> mode ALPHA
     """
 
-    if source_image is None:
+    # ========================================================
+    # VALIDASI SOURCE
+    # ========================================================
 
-        raise ValueError(
-            "Source image tidak tersedia."
+    if not isinstance(image, Image.Image):
+        raise TypeError(
+            "image harus berupa PIL.Image.Image."
         )
 
-    if size <= 0:
+    # ========================================================
+    # KOMPATIBILITAS PARAMETER LAMA
+    # ========================================================
 
-        raise ValueError(
-            "Size harus lebih besar "
-            "dari 0."
-        )
+    if flatten_before_resize is not None:
 
-    source_image = (
-        source_image.convert(
-            "RGBA"
-        )
+        if flatten_before_resize:
+            mode = "FLATTEN"
+        else:
+            mode = "ALPHA"
+
+    # ========================================================
+    # RESOLVE SIZE
+    # ========================================================
+
+    target_width, target_height = resolve_size(
+        size
     )
 
-    # --------------------------------------------------------
-    # FLATTEN TRANSPARENCY
-    # --------------------------------------------------------
+    # ========================================================
+    # RESOLVE RESIZE METHOD
+    # ========================================================
 
-    if flatten_before_resize:
-
-        working_image = (
-            flatten_transparency(
-                source_image,
-                background
-            )
-        )
-
-    else:
-
-        working_image = (
-            source_image.copy()
-        )
-
-    # --------------------------------------------------------
-    # RESIZE PROPORSIONAL
-    # --------------------------------------------------------
-
-    resized = resize_image(
-        working_image,
-        size,
-        size,
-        resize_method,
-        allow_upscale
+    resampling = get_resize_method(
+        resize_method
     )
 
-    # --------------------------------------------------------
-    # CENTER
-    # --------------------------------------------------------
+    # ========================================================
+    # RESOLVE BACKGROUND
+    # ========================================================
 
-    result = center_image(
-        resized,
-        size,
-        size,
+    background_color = get_background(
         background
     )
+
+    # ========================================================
+    # VALIDASI MODE
+    # ========================================================
+
+    if not isinstance(mode, str):
+        raise TypeError(
+            "mode harus berupa string."
+        )
+
+    mode = mode.upper()
+
+    if mode not in (
+        "ALPHA",
+        "FLATTEN"
+    ):
+        raise ValueError(
+            f"Mode tidak dikenal: {mode}. "
+            f"Gunakan 'ALPHA' atau 'FLATTEN'."
+        )
+
+    # ========================================================
+    # COPY SOURCE
+    # ========================================================
+
+    working_image = image.copy()
+
+    # ========================================================
+    # NORMALIZE BACKGROUND
+    # ========================================================
+
+    background_color = normalize_background(
+        background_color
+    )
+
+    # ========================================================
+    # FLATTEN TRANSPARENCY
+    # ========================================================
+
+    if mode == "FLATTEN":
+
+        if background_color is None:
+            raise ValueError(
+                "Mode FLATTEN membutuhkan "
+                "background."
+            )
+
+        working_image = flatten_transparency(
+            working_image,
+            background_color
+        )
+
+    # ========================================================
+    # CALCULATE FIT SIZE
+    # ========================================================
+
+    source_width, source_height = (
+        working_image.size
+    )
+
+    new_width, new_height = (
+        calculate_fit_size(
+            source_width,
+            source_height,
+            target_width,
+            target_height,
+            allow_upscale=allow_upscale
+        )
+    )
+
+    # ========================================================
+    # RESIZE
+    # ========================================================
+
+    resized_image = resize_image(
+        working_image,
+        new_width,
+        new_height,
+        resampling
+    )
+
+    # ========================================================
+    # CENTER IMAGE
+    # ========================================================
+
+    result = center_image(
+        resized_image,
+        target_width,
+        target_height,
+        background_color
+    )
+
+    # ========================================================
+    # PASTIKAN RGBA
+    # ========================================================
+
+    if result.mode != "RGBA":
+        result = result.convert(
+            "RGBA"
+        )
 
     return result
 
