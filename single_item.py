@@ -372,7 +372,9 @@ def on_process(
     source_image,
     size_var,
     method_var,
-    background_var
+    background_var,
+    custom_width_var,
+    custom_height_var
 ):
     """
     Callback tombol Process.
@@ -380,9 +382,44 @@ def on_process(
 
     try:
 
-        selected_size = (
-            size_var.get()
-        )
+        selected_size = size_var.get()
+
+        if selected_size == "Custom":
+
+            try:
+
+                custom_width = int(
+                    custom_width_var.get()
+                )
+
+                custom_height = int(
+                    custom_height_var.get()
+                )
+
+            except (
+                ValueError,
+                TypeError
+            ):
+
+                raise ValueError(
+                    "Custom width dan height "
+                    "harus berupa angka."
+                )
+
+            if (
+                custom_width <= 0
+                or custom_height <= 0
+            ):
+
+                raise ValueError(
+                    "Custom width dan height "
+                    "harus lebih besar dari 0."
+                )
+
+            selected_size = (
+                custom_width,
+                custom_height
+            )
 
         selected_method = (
             method_var.get()
@@ -429,7 +466,9 @@ def build_process_controls(
     parent,
     size_var,
     method_var,
-    background_var
+    background_var,
+    custom_width_var,
+    custom_height_var
 ):
     """
     Membuat kontrol:
@@ -470,10 +509,18 @@ def build_process_controls(
         pady=8
     )
 
+    size_options = list(
+        SIZE_PRESETS.keys()
+    )
+
+    size_options.append(
+        "Custom"
+    )
+
     size_menu = tk.OptionMenu(
         controls_frame,
         size_var,
-        *SIZE_PRESETS.keys()
+        *size_options
     )
 
     size_menu.config(
@@ -486,6 +533,83 @@ def build_process_controls(
         padx=5,
         pady=8
     )
+    
+    # ========================================================
+    # CUSTOM SIZE
+    # ========================================================
+
+    custom_frame = tk.Frame(
+        controls_frame
+    )
+
+    custom_width_label = tk.Label(
+        custom_frame,
+        text="W:"
+    )
+
+    custom_width_label.pack(
+        side="left"
+    )
+
+    custom_width_entry = tk.Entry(
+        custom_frame,
+        textvariable=custom_width_var,
+        width=5
+    )
+
+    custom_width_entry.pack(
+        side="left",
+        padx=(3, 8)
+    )
+
+    custom_height_label = tk.Label(
+        custom_frame,
+        text="H:"
+    )
+
+    custom_height_label.pack(
+        side="left"
+    )
+
+    custom_height_entry = tk.Entry(
+        custom_frame,
+        textvariable=custom_height_var,
+        width=5
+    )
+
+    custom_height_entry.pack(
+        side="left",
+        padx=3
+    )
+
+    def update_custom_size_visibility(
+        *args
+    ):
+
+        if size_var.get() == "Custom":
+
+            custom_frame.grid(
+                row=1,
+                column=0,
+                columnspan=2,
+                padx=5,
+                pady=(0, 8),
+                sticky="w"
+            )
+
+        else:
+
+            custom_frame.grid_remove()
+
+
+    size_var.trace_add(
+        "write",
+        update_custom_size_visibility
+    )
+
+    update_custom_size_visibility()
+
+
 
     # ========================================================
     # RESIZE METHOD
@@ -536,22 +660,6 @@ def build_process_controls(
         pady=8
     )
 
-    # ========================================================
-    # BACKGROUND
-    # ========================================================
-
-    background_label = tk.Label(
-        controls_frame,
-        text="BACKGROUND"
-    )
-
-    background_label.grid(
-        row=0,
-        column=4,
-        padx=(20, 5),
-        pady=8
-    )
-
     background_menu = tk.OptionMenu(
         controls_frame,
         background_var,
@@ -569,17 +677,6 @@ def build_process_controls(
         pady=8
     )
 
-    background_menu.config(
-        width=12
-    )
-
-    background_menu.grid(
-        row=0,
-        column=5,
-        padx=5,
-        pady=8
-    )
-    
     # ========================================================
     # UPDATE BACKGROUND OPTIONS
     # ========================================================
@@ -612,22 +709,38 @@ def build_process_controls(
 
         try:
 
-            size_width, size_height = (
-                resolve_size(
-                    selected_size
-                )
-            )
+            if selected_size == "Custom":
 
-        except Exception:
+                size_width = int(
+                    custom_width_var.get()
+                )
+
+                size_height = int(
+                    custom_height_var.get()
+                )
+
+            else:
+
+                size_width, size_height = (
+                    resolve_size(
+                        selected_size
+                    )
+                )
+
+        except (
+            ValueError,
+            TypeError
+        ):
 
             size_width = 0
             size_height = 0
-
+            
         is_card_size = (
             size_width == 100
             and size_height == 100
         )
-
+        
+        
         # ----------------------------------------------------
         # Buat daftar background
         # ----------------------------------------------------
@@ -686,6 +799,7 @@ def build_process_controls(
             )
 
 
+
     # ========================================================
     # SIZE CHANGE CALLBACK
     # ========================================================
@@ -693,6 +807,7 @@ def build_process_controls(
     def on_size_changed(
         *args
     ):
+
         update_background_options(
             size_var.get()
         )
@@ -702,12 +817,15 @@ def build_process_controls(
         "write",
         on_size_changed
     )
-    
-    
+
+    update_background_options(
+        size_var.get()
+    )
+
+
     # ========================================================
     # RESPONSIVE
     # ========================================================
-
     controls_frame.columnconfigure(
         1,
         weight=1
@@ -768,6 +886,14 @@ def open_single_item(
 
     size_var = tk.StringVar(
         value=DEFAULT_SIZE_PRESET
+    )
+    
+    custom_width_var = tk.StringVar(
+        value="100"
+    )
+
+    custom_height_var = tk.StringVar(
+        value="100"
     )
 
     method_var = tk.StringVar(
@@ -848,8 +974,12 @@ def open_single_item(
         window,
         size_var,
         method_var,
-        background_var
+        background_var,
+        custom_width_var,
+        custom_height_var
     )
+    
+    
     
     # ========================================================
     # PROCESS BUTTON
@@ -864,7 +994,9 @@ def open_single_item(
             source_image,
             size_var,
             method_var,
-            background_var
+            background_var,
+            custom_width_var,
+            custom_height_var
         )
     )
 
