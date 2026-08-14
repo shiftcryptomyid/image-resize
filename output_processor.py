@@ -119,20 +119,26 @@ def prepare_image_for_output(
         if image.mode == "RGBA":
 
             background_image = Image.new(
-                "RGB",
+                "RGBA",
                 image.size,
-                background
-            )
-
-            background_image.paste(
-                image,
-                mask=image.getchannel(
-                    "A"
+                (
+                    background[0],
+                    background[1],
+                    background[2],
+                    255
                 )
             )
 
-            return background_image
+            composited_image = Image.alpha_composite(
+                background_image,
+                image
+            )
 
+            return composited_image.convert(
+                "RGB"
+            )
+        
+        
         # ----------------------------------------------------
         # LA
         # ----------------------------------------------------
@@ -144,20 +150,26 @@ def prepare_image_for_output(
             )
 
             background_image = Image.new(
-                "RGB",
+                "RGBA",
                 image.size,
-                background
-            )
-
-            background_image.paste(
-                rgba_image,
-                mask=rgba_image.getchannel(
-                    "A"
+                (
+                    background[0],
+                    background[1],
+                    background[2],
+                    255
                 )
             )
 
-            return background_image
+            composited_image = Image.alpha_composite(
+                background_image,
+                rgba_image
+            )
 
+            return composited_image.convert(
+                "RGB"
+            )
+        
+        
         # ----------------------------------------------------
         # P
         # ----------------------------------------------------
@@ -171,19 +183,24 @@ def prepare_image_for_output(
                 )
 
                 background_image = Image.new(
-                    "RGB",
+                    "RGBA",
                     image.size,
-                    background
-                )
-
-                background_image.paste(
-                    rgba_image,
-                    mask=rgba_image.getchannel(
-                        "A"
+                    (
+                        background[0],
+                        background[1],
+                        background[2],
+                        255
                     )
                 )
 
-                return background_image
+                composited_image = Image.alpha_composite(
+                    background_image,
+                    rgba_image
+                )
+
+                return composited_image.convert(
+                    "RGB"
+                )
 
             return image.convert(
                 "RGB"

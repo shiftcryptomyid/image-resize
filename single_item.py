@@ -1,6 +1,8 @@
 import tkinter as tk
 import output_processor
 from tkinter import messagebox
+from tkinter import filedialog
+from pathlib import Path
 
 from PIL import Image, ImageTk
 
@@ -446,6 +448,8 @@ def on_process(
             selected_size,
             selected_method
         )
+        
+        return result_image
 
     except Exception as error:
 
@@ -879,8 +883,6 @@ def build_process_controls(
 
     return controls_frame
 
-
-
 # ============================================================
 # SINGLE ITEM WINDOW
 # ============================================================
@@ -899,6 +901,8 @@ def open_single_item(
         )
 
         return
+    
+    
 
     # --------------------------------------------------------
     # DATA SOURCE
@@ -943,7 +947,126 @@ def open_single_item(
     output_format_var = tk.StringVar(
         value="PNG"
     )
+    
+    processed_image = None
+    
+    # ========================================================
+    # PROCESS CURRENT IMAGE
+    # ========================================================
+    
+    def process_current_image():
 
+        nonlocal processed_image
+
+        processed_image = on_process(
+            window,
+            source_image,
+            size_var,
+            method_var,
+            background_var,
+            custom_width_var,
+            custom_height_var
+        )
+
+    # ========================================================
+    # SAVE CURRENT IMAGE
+    # ========================================================
+
+    def save_current_image():
+
+        if processed_image is None:
+
+            messagebox.showwarning(
+                "Image belum diproses",
+                "Silakan lakukan Process terlebih dahulu.",
+                parent=window
+            )
+
+            return
+
+        # ========================================================
+        # OUTPUT FORMAT
+        # ========================================================
+
+        output_format = (
+            output_format_var.get()
+            .upper()
+        )
+
+        if output_format == "PNG":
+
+            extension = ".png"
+
+            filetypes = [
+                (
+                    "PNG Image",
+                    "*.png"
+                )
+            ]
+
+        else:
+
+            extension = ".bmp"
+
+            filetypes = [
+                (
+                    "BMP Image",
+                    "*.bmp"
+                )
+            ]
+
+        # ========================================================
+        # SAVE DIALOG
+        # ========================================================
+
+        output_path = filedialog.asksaveasfilename(
+            parent=window,
+            title="Save Processed Image",
+            defaultextension=extension,
+            filetypes=filetypes
+        )
+
+        if not output_path:
+
+            return
+
+        # ========================================================
+        # FORCE OUTPUT EXTENSION
+        # ========================================================
+
+        output_path = Path(
+            output_path
+        ).with_suffix(
+            extension
+        )
+
+        try:
+
+            output_processor.save_image(
+                processed_image,
+                output_path,
+                output_format
+            )
+
+        except Exception as error:
+
+            messagebox.showerror(
+                "Save Error",
+                str(error),
+                parent=window
+            )
+
+            return
+
+        messagebox.showinfo(
+            "Save Success",
+            f"Image berhasil disimpan:\n\n"
+            f"{output_path}",
+            parent=window
+        )
+    
+    
+    
     # --------------------------------------------------------
     # WINDOW
     # --------------------------------------------------------
@@ -1029,18 +1152,21 @@ def open_single_item(
         window,
         text="Process",
         width=15,
-        command=lambda: on_process(
-            window,
-            source_image,
-            size_var,
-            method_var,
-            background_var,
-            custom_width_var,
-            custom_height_var
-        )
+        command=process_current_image
     )
 
     process_button.pack(
+        pady=8
+    )
+    
+    save_button = tk.Button(
+        window,
+        text="Save",
+        width=15,
+        command=save_current_image
+    )
+
+    save_button.pack(
         pady=8
     )
 

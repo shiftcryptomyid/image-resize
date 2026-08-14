@@ -463,6 +463,11 @@ def resize_image(
 
     Image tidak akan diperbesar jika
     allow_upscale=False.
+
+    Untuk RGBA:
+        Menggunakan premultiplied alpha
+        agar mengurangi halo / warna kotor
+        pada tepi transparency.
     """
 
     new_width, new_height = (
@@ -475,6 +480,10 @@ def resize_image(
         )
     )
 
+    # ========================================================
+    # TIDAK PERLU RESIZE
+    # ========================================================
+
     if (
         new_width == image.width
         and
@@ -483,6 +492,84 @@ def resize_image(
 
         return image.copy()
 
+    # ========================================================
+    # ALPHA-SAFE RESIZE
+    # ========================================================
+
+    if image.mode == "RGBA":
+
+        premultiplied = image.convert(
+            "RGBa"
+        )
+
+        resized = premultiplied.resize(
+            (
+                new_width,
+                new_height
+            ),
+            resize_method
+        )
+
+        resized = resized.convert(
+            "RGBA"
+        )
+
+        # ====================================================
+        # CLEAN LOW ALPHA
+        # ====================================================
+
+        r, g, b, a = resized.split()
+
+        alpha_threshold = 64
+
+        a = a.point(
+            lambda value:
+                0
+                if value < alpha_threshold
+                else value
+        )
+
+        transparent_mask = (
+            a.point(
+                lambda value:
+                    255
+                    if value == 0
+                    else 0
+            )
+        )
+
+        r = r.copy()
+        g = g.copy()
+        b = b.copy()
+
+        r.paste(
+            0,
+            mask=transparent_mask
+        )
+
+        g.paste(
+            0,
+            mask=transparent_mask
+        )
+
+        b.paste(
+            0,
+            mask=transparent_mask
+        )
+
+        return Image.merge(
+            "RGBA",
+            (
+                r,
+                g,
+                b,
+                a
+            )
+        )
+    # ========================================================
+    # NORMAL RESIZE
+    # ========================================================
+
     return image.resize(
         (
             new_width,
@@ -490,8 +577,8 @@ def resize_image(
         ),
         resize_method
     )
-
-
+    
+    
 # ============================================================
 # CENTER IMAGE
 # ============================================================
@@ -558,6 +645,211 @@ def center_image(
     )
 
     return canvas
+
+
+# ============================================================
+# CLEAN ALPHA RESIZE
+# ============================================================
+
+def resize_rgba_clean(
+    image,
+    size,
+    resample=Image.Resampling.LANCZOS
+):
+    """
+    Resize RGBA dengan premultiplied alpha.
+
+    Tujuan:
+        Mengurangi halo / pixel kotor
+        pada area transparency setelah resize.
+
+    RGB pada pixel transparan tidak ikut
+    mencemari pixel tepi saat interpolasi.
+    """
+
+    image = image.convert(
+        "RGBA"
+    )
+
+    width, height = image.size
+
+    if width <= 0 or height <= 0:
+
+        raise ValueError(
+            "Ukuran image tidak valid."
+        )
+
+    # --------------------------------------------------------
+    # SPLIT CHANNEL
+    # --------------------------------------------------------
+
+    r, g, b, a = image.split()
+
+    # --------------------------------------------------------
+    # PREMULTIPLY RGB DENGAN ALPHA
+    # --------------------------------------------------------
+
+    alpha = a.load()
+
+    r = r.load()
+    g = g.load()
+    b = b.load()
+
+    premult_r = Image.new(
+        "L",
+        image.size
+    )
+
+    premult_g = Image.new(
+        "L",
+        image.size
+    )
+
+    premult_b = Image.new(
+        "L",
+        image.size
+    )
+
+    pr = premult_r.load()
+    pg = premult_g.load()
+    pb = premult_b.load()
+
+    for y in range(height):
+
+        for x in range(width):
+
+            alpha_value = alpha[x, y]
+
+            pr[x, y] = (
+                r[x, y] *
+                alpha_value //
+                255
+            )
+
+            pg[x, y] = (
+                g[x, y] *
+                alpha_value //
+                255
+            )
+
+            pb[x, y] = (
+                b[x, y] *
+                alpha_value //
+                255
+            )
+
+    # --------------------------------------------------------
+    # RESIZE
+    # --------------------------------------------------------
+
+    premult_r = premult_r.resize(
+        size,
+        resample
+    )
+
+    premult_g = premult_g.resize(
+        size,
+        resample
+    )
+
+    premult_b = premult_b.resize(
+        size,
+        resample
+    )
+
+    alpha_resized = a.resize(
+        size,
+        resample
+    )
+
+    # --------------------------------------------------------
+    # UNPREMULTIPLY
+    # --------------------------------------------------------
+
+    pr = premult_r.load()
+    pg = premult_g.load()
+    pb = premult_b.load()
+
+    alpha = alpha_resized.load()
+
+    final_r = Image.new(
+        "L",
+        size
+    )
+
+    final_g = Image.new(
+        "L",
+        size
+    )
+
+    final_b = Image.new(
+        "L",
+        size
+    )
+
+    fr = final_r.load()
+    fg = final_g.load()
+    fb = final_b.load()
+
+    new_width, new_height = size
+
+    for y in range(new_height):
+
+        for x in range(new_width):
+
+            alpha_value = alpha[x, y]
+
+            if alpha_value == 0:
+
+                fr[x, y] = 0
+                fg[x, y] = 0
+                fb[x, y] = 0
+
+            else:
+
+                fr[x, y] = min(
+                    255,
+                    (
+                        pr[x, y] *
+                        255 +
+                        alpha_value // 2
+                    ) //
+                    alpha_value
+                )
+
+                fg[x, y] = min(
+                    255,
+                    (
+                        pg[x, y] *
+                        255 +
+                        alpha_value // 2
+                    ) //
+                    alpha_value
+                )
+
+                fb[x, y] = min(
+                    255,
+                    (
+                        pb[x, y] *
+                        255 +
+                        alpha_value // 2
+                    ) //
+                    alpha_value
+                )
+
+    # --------------------------------------------------------
+    # MERGE
+    # --------------------------------------------------------
+
+    return Image.merge(
+        "RGBA",
+        (
+            final_r,
+            final_g,
+            final_b,
+            alpha_resized
+        )
+    )
 
 
 # ============================================================
@@ -855,108 +1147,6 @@ def process_item(
         )
 
     return result
-
-
-# ============================================================
-# SAVE IMAGE
-# ============================================================
-
-def save_image(
-    image,
-    output_path,
-    format=None
-):
-    """
-    Menyimpan image.
-
-    Jika format tidak diberikan,
-    PIL akan menentukan berdasarkan extension.
-    """
-
-    if image is None:
-
-        raise ValueError(
-            "Image tidak tersedia."
-        )
-
-    output_path = Path(
-        output_path
-    )
-
-    output_path.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    image.save(
-        output_path,
-        format=format
-    )
-
-
-# ============================================================
-# SAVE BMP
-# ============================================================
-
-def save_bmp(
-    image,
-    output_path,
-    background=None
-):
-    """
-    Menyimpan image sebagai BMP.
-
-    BMP tidak digunakan dengan alpha
-    untuk output item.
-
-    Jika image masih RGBA, maka akan
-    dikonversi menjadi RGB.
-
-    background=None:
-        Alpha akan dibuang secara langsung.
-
-    background diberikan:
-        Image akan dikompositkan terlebih
-        dahulu ke background.
-    """
-
-    if image is None:
-
-        raise ValueError(
-            "Image tidak tersedia."
-        )
-
-    image = image.convert(
-        "RGBA"
-    )
-
-    if background is not None:
-
-        image = (
-            flatten_transparency(
-                image,
-                background
-            )
-        )
-
-    image = image.convert(
-        "RGB"
-    )
-
-    output_path = Path(
-        output_path
-    )
-
-    output_path.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    image.save(
-        output_path,
-        "BMP"
-    )
-
 
 # ============================================================
 # TEST MANUAL
