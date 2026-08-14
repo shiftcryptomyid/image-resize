@@ -1,7 +1,9 @@
 import tkinter as tk
+import output_processor
 from tkinter import messagebox
 
 from PIL import Image, ImageTk
+
 
 from item_processor import (
     process_item,
@@ -468,7 +470,8 @@ def build_process_controls(
     method_var,
     background_var,
     custom_width_var,
-    custom_height_var
+    custom_height_var,
+    output_format_var
 ):
     """
     Membuat kontrol:
@@ -672,6 +675,39 @@ def build_process_controls(
 
     background_menu.grid(
         row=0,
+        column=5,
+        padx=5,
+        pady=8
+    )
+    
+    # ========================================================
+    # OUTPUT FORMAT
+    # ========================================================
+
+    output_format_label = tk.Label(
+        controls_frame,
+        text="OUTPUT FORMAT"
+    )
+
+    output_format_label.grid(
+        row=1,
+        column=4,
+        padx=(20, 5),
+        pady=8
+    )
+
+    output_format_menu = tk.OptionMenu(
+        controls_frame,
+        output_format_var,
+        *output_processor.OUTPUT_FORMATS
+    )
+
+    output_format_menu.config(
+        width=12
+    )
+
+    output_format_menu.grid(
+        row=1,
         column=5,
         padx=5,
         pady=8
@@ -904,6 +940,9 @@ def open_single_item(
         value=DEFAULT_BACKGROUND
     )
     
+    output_format_var = tk.StringVar(
+        value="PNG"
+    )
 
     # --------------------------------------------------------
     # WINDOW
@@ -976,7 +1015,8 @@ def open_single_item(
         method_var,
         background_var,
         custom_width_var,
-        custom_height_var
+        custom_height_var,
+        output_format_var
     )
     
     
