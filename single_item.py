@@ -236,7 +236,9 @@ def show_processed_result(
     parent,
     result_image,
     size,
-    method
+    method,
+    output_format,
+    background
 ):
     """
     Menampilkan hasil Process final.
@@ -311,7 +313,11 @@ def show_processed_result(
 
     preview_size = 240
 
-    preview_image = result_image.copy()
+    preview_image = output_processor.prepare_preview_image(
+        result_image,
+        output_format,
+        background
+    )
 
     preview_image = preview_image.resize(
         (
@@ -378,7 +384,8 @@ def on_process(
     method_var,
     background_var,
     custom_width_var,
-    custom_height_var
+    custom_height_var,
+    output_format_var
 ):
     """
     Callback tombol Process.
@@ -432,13 +439,23 @@ def on_process(
         selected_background = (
             background_var.get()
         )
+        
+        selected_background_color = (
+            BACKGROUND_PRESETS[
+                selected_background
+            ]
+        )
+        
+        if selected_background_color == "CARD":
+
+            selected_background_color = None
 
         result_image = (
             process_selected_image(
                 source_image,
                 selected_size,
                 selected_method,
-                selected_background
+                selected_background_color
             )
         )
 
@@ -446,7 +463,9 @@ def on_process(
             parent,
             result_image,
             selected_size,
-            selected_method
+            selected_method,
+            output_format_var.get(),
+            selected_background_color
         )
         
         return result_image
@@ -965,7 +984,8 @@ def open_single_item(
             method_var,
             background_var,
             custom_width_var,
-            custom_height_var
+            custom_height_var,
+            output_format_var
         )
 
     # ========================================================
