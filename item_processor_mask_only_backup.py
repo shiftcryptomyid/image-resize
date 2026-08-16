@@ -804,81 +804,6 @@ def resize_rgba_clean(
 
 
 # ============================================================
-# DEBUG ALPHA DISTRIBUTION
-# ============================================================
-
-def debug_alpha_distribution(image):
-
-    if image is None:
-
-        raise ValueError(
-            "Image tidak tersedia."
-        )
-
-    image = image.convert(
-        "RGBA"
-    )
-
-    alpha = image.getchannel(
-        "A"
-    )
-
-    buckets = {
-        "0": 0,
-        "1-64": 0,
-        "65-128": 0,
-        "129-160": 0,
-        "161-192": 0,
-        "193-224": 0,
-        "225-254": 0,
-        "255": 0,
-    }
-
-    for value in alpha.getdata():
-
-        if value == 0:
-            buckets["0"] += 1
-
-        elif value <= 64:
-            buckets["1-64"] += 1
-
-        elif value <= 128:
-            buckets["65-128"] += 1
-
-        elif value <= 160:
-            buckets["129-160"] += 1
-
-        elif value <= 192:
-            buckets["161-192"] += 1
-
-        elif value <= 224:
-            buckets["193-224"] += 1
-
-        elif value <= 254:
-            buckets["225-254"] += 1
-
-        else:
-            buckets["255"] += 1
-
-    print()
-    print(
-        "========== ALPHA DISTRIBUTION =========="
-    )
-
-    for name, count in buckets.items():
-
-        print(
-            f"Alpha {name:>7}: {count}"
-        )
-
-    print(
-        "========================================"
-    )
-    print()
-
-
-
-# ============================================================
 # PROCESS ITEM
 # ============================================================
 
@@ -1189,17 +1114,7 @@ def process_item(
             target_height,
             background_color
         )
-        
-        
-    # ========================================================
-    # DEBUG ALPHA
-    # ========================================================
 
-    if mode == "ALPHA":
-
-        debug_alpha_distribution(
-            result
-        )
 
     # ========================================================
     # PASTIKAN RGBA
