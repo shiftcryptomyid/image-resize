@@ -1130,12 +1130,23 @@ def process_item(
     # CENTER IMAGE
     # ========================================================
 
-    result = center_image(
-        resized_image,
-        target_width,
-        target_height,
-        background_color
-    )
+    if mode == "ALPHA":
+
+        result = center_image(
+            resized_image,
+            target_width,
+            target_height,
+            None
+        )
+
+    else:
+
+        result = center_image(
+            resized_image,
+            target_width,
+            target_height,
+            background_color
+        )
 
     # ========================================================
     # PASTIKAN RGBA

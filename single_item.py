@@ -988,6 +988,7 @@ def open_single_item(
             output_format_var
         )
 
+
     # ========================================================
     # SAVE CURRENT IMAGE
     # ========================================================
@@ -1060,12 +1061,76 @@ def open_single_item(
             extension
         )
 
+        # ========================================================
+        # OUTPUT BACKGROUND
+        #
+        # PNG:
+        #     Alpha asli dipertahankan.
+        #
+        # BMP:
+        #     Gunakan background yang dipilih user.
+        # ========================================================
+
+        background_color = None
+
+        if output_format == "BMP":
+
+            selected_background = (
+                background_var.get()
+            )
+
+            background_color = (
+                BACKGROUND_PRESETS[
+                    selected_background
+                ]
+            )
+
+            # ----------------------------------------------------
+            # BMP tidak boleh menerima None sebagai background.
+            #
+            # Untuk output ACTOR, TRANSPARENT menggunakan PINK
+            # sebagai color-key transparency.
+            # ----------------------------------------------------
+
+            if (
+                selected_background == "TRANSPARENT"
+                or
+                background_color is None
+            ):
+
+                background_color = (
+                    BACKGROUND_PRESETS[
+                        "PINK"
+                    ]
+                )
+
+            # ----------------------------------------------------
+            # CARD adalah preset khusus Collection.
+            # Tidak valid sebagai background BMP Single Item.
+            # ----------------------------------------------------
+
+            if background_color == "CARD":
+
+                messagebox.showwarning(
+                    "Background tidak valid",
+                    "Background CARD tidak dapat digunakan "
+                    "untuk save Single Item.",
+                    parent=window
+                )
+
+                return
+
+        # ========================================================
+        # SAVE
+        # ========================================================
+
         try:
 
             output_processor.save_image(
                 processed_image,
                 output_path,
-                output_format
+                output_format,
+                background_color
             )
 
         except Exception as error:
@@ -1078,13 +1143,16 @@ def open_single_item(
 
             return
 
+        # ========================================================
+        # SUCCESS
+        # ========================================================
+
         messagebox.showinfo(
             "Save Success",
             f"Image berhasil disimpan:\n\n"
             f"{output_path}",
             parent=window
         )
-    
     
     
     # --------------------------------------------------------
