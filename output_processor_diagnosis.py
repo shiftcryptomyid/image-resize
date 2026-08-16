@@ -53,110 +53,6 @@ def resolve_output_format(
 
     return output_format
 
-
-# ============================================================
-# BMP EDGE MASK
-# ============================================================
-
-def build_bmp_edge_mask(
-    image,
-    alpha_threshold=160
-):
-    """
-    Membuat mask untuk menentukan pixel visible
-    yang berada di tepi transparency.
-
-    Pixel:
-        alpha <= threshold
-            -> transparent
-
-        alpha > threshold
-            -> visible
-
-    Edge hanya digunakan untuk pixel visible
-    yang berdekatan dengan area transparent.
-
-    Tidak mengubah RGB.
-    """
-
-    image = image.convert(
-        "RGBA"
-    )
-
-    alpha = image.getchannel(
-        "A"
-    )
-
-    width, height = image.size
-
-    mask = Image.new(
-        "L",
-        image.size,
-        0
-    )
-
-    source = alpha.load()
-    result = mask.load()
-
-    for y in range(height):
-
-        for x in range(width):
-
-            current_alpha = (
-                source[x, y]
-            )
-
-            # ------------------------------------------------
-            # HANYA PIXEL VISIBLE
-            # ------------------------------------------------
-
-            if current_alpha <= alpha_threshold:
-                continue
-
-            # ------------------------------------------------
-            # CEK 8-TETANGGA
-            # ------------------------------------------------
-
-            is_edge = False
-
-            for dy in (-1, 0, 1):
-
-                for dx in (-1, 0, 1):
-
-                    if dx == 0 and dy == 0:
-                        continue
-
-                    nx = x + dx
-                    ny = y + dy
-
-                    if (
-                        nx < 0
-                        or nx >= width
-                        or ny < 0
-                        or ny >= height
-                    ):
-                        continue
-
-                    neighbor_alpha = (
-                        source[nx, ny]
-                    )
-
-                    if (
-                        neighbor_alpha
-                        <= alpha_threshold
-                    ):
-                        is_edge = True
-                        break
-
-                if is_edge:
-                    break
-
-            if is_edge:
-                result[x, y] = 255
-
-    return mask
-
-
 # ============================================================
 # BMP COLOR KEY
 # ============================================================
@@ -172,17 +68,15 @@ def prepare_bmp_color_key(
     """
     Menyiapkan RGBA menjadi BMP color-key.
 
-    BMP tidak menyimpan alpha.
+    Alpha hanya digunakan sebagai MASK.
 
-    Pixel transparent:
-        alpha <= threshold
-        -> transparent_color
+    alpha <= threshold:
+        menjadi transparent_color.
 
-    Pixel visible:
+    alpha > threshold:
         RGB asli dipertahankan.
 
-    Edge transparency diproses menggunakan
-    BMP edge-mask.
+    Tidak ada color blending.
     """
 
     if image is None:
@@ -210,22 +104,7 @@ def prepare_bmp_color_key(
     source_pixels = image.load()
     result_pixels = result.load()
 
-    # --------------------------------------------------------
-    # EDGE MASK
-    # --------------------------------------------------------
-
-    edge_mask = build_bmp_edge_mask(
-        image,
-        alpha_threshold
-    )
-
-    edge_pixels = edge_mask.load()
-
     width, height = image.size
-
-    # --------------------------------------------------------
-    # PROCESS PIXELS
-    # --------------------------------------------------------
 
     for y in range(height):
 
@@ -245,22 +124,12 @@ def prepare_bmp_color_key(
                     transparent_rgb
                 )
 
-                continue
-
             # ------------------------------------------------
-            # EDGE
+            # VISIBLE
+            # RGB ASLI
             # ------------------------------------------------
 
-            if edge_pixels[x, y] == 255:
-
-                # ------------------------------------------------
-                # Untuk tahap pertama:
-                #
-                # edge tetap menggunakan RGB ASLI.
-                #
-                # Kita belum melakukan blending atau
-                # perubahan warna.
-                # ------------------------------------------------
+            else:
 
                 result_pixels[x, y] = (
                     r,
@@ -268,20 +137,8 @@ def prepare_bmp_color_key(
                     b
                 )
 
-                continue
-
-            # ------------------------------------------------
-            # NORMAL VISIBLE
-            # ------------------------------------------------
-
-            result_pixels[x, y] = (
-                r,
-                g,
-                b
-            )
-
     return result
-
+    
     
 # ============================================================
 # PREPARE IMAGE FOR OUTPUT
