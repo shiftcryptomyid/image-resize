@@ -161,7 +161,7 @@ def build_bmp_edge_mask(
 # BMP COLOR KEY
 # ============================================================
 
-BMP_ALPHA_THRESHOLD = 160
+BMP_ALPHA_THRESHOLD = 100
 
 
 def prepare_bmp_color_key(
@@ -172,17 +172,20 @@ def prepare_bmp_color_key(
     """
     Menyiapkan RGBA menjadi BMP color-key.
 
-    BMP tidak menyimpan alpha.
+    Alpha digunakan sebagai MASK.
 
-    Pixel transparent:
-        alpha <= threshold
-        -> transparent_color
+    alpha <= threshold:
+        menjadi transparent_color.
 
-    Pixel visible:
+    alpha > threshold:
         RGB asli dipertahankan.
 
-    Edge transparency diproses menggunakan
-    BMP edge-mask.
+    Tidak menggunakan edge-mask.
+
+    Tujuan:
+        Mempertahankan RGB asli sprite ACTOR,
+        termasuk pixel semi-transparent yang memang
+        merupakan bagian dari sprite.
     """
 
     if image is None:
@@ -210,22 +213,7 @@ def prepare_bmp_color_key(
     source_pixels = image.load()
     result_pixels = result.load()
 
-    # --------------------------------------------------------
-    # EDGE MASK
-    # --------------------------------------------------------
-
-    edge_mask = build_bmp_edge_mask(
-        image,
-        alpha_threshold
-    )
-
-    edge_pixels = edge_mask.load()
-
     width, height = image.size
-
-    # --------------------------------------------------------
-    # PROCESS PIXELS
-    # --------------------------------------------------------
 
     for y in range(height):
 
@@ -245,22 +233,12 @@ def prepare_bmp_color_key(
                     transparent_rgb
                 )
 
-                continue
-
             # ------------------------------------------------
-            # EDGE
+            # VISIBLE
+            # RGB ASLI
             # ------------------------------------------------
 
-            if edge_pixels[x, y] == 255:
-
-                # ------------------------------------------------
-                # Untuk tahap pertama:
-                #
-                # edge tetap menggunakan RGB ASLI.
-                #
-                # Kita belum melakukan blending atau
-                # perubahan warna.
-                # ------------------------------------------------
+            else:
 
                 result_pixels[x, y] = (
                     r,
@@ -268,20 +246,96 @@ def prepare_bmp_color_key(
                     b
                 )
 
-                continue
-
-            # ------------------------------------------------
-            # NORMAL VISIBLE
-            # ------------------------------------------------
-
-            result_pixels[x, y] = (
-                r,
-                g,
-                b
-            )
-
     return result
 
+
+# ============================================================
+# BMP ALPHA COLOR KEY - CLEAN
+# ============================================================
+
+def prepare_bmp_alpha_dither(
+    image,
+    transparent_color,
+    transparency_limit=64
+):
+    """
+    Mengubah RGBA menjadi BMP color-key.
+
+    BMP Indexed tidak memiliki alpha.
+    Karena itu hanya ada dua kondisi:
+
+        alpha <= transparency_limit
+            -> transparent color
+
+        alpha > transparency_limit
+            -> RGB asli
+
+    Tidak menggunakan dithering.
+
+    Tujuannya menjaga sprite tetap bersih dan
+    mempertahankan RGB asli pada bagian visible.
+    """
+
+    if image is None:
+
+        raise ValueError(
+            "Image tidak tersedia."
+        )
+
+    image = image.convert(
+        "RGBA"
+    )
+
+    transparent_rgb = (
+        transparent_color[0],
+        transparent_color[1],
+        transparent_color[2]
+    )
+
+    result = Image.new(
+        "RGB",
+        image.size,
+        transparent_rgb
+    )
+
+    source_pixels = image.load()
+    result_pixels = result.load()
+
+    width, height = image.size
+
+    for y in range(height):
+
+        for x in range(width):
+
+            r, g, b, a = (
+                source_pixels[x, y]
+            )
+
+            # ------------------------------------------------
+            # TRANSPARENT
+            # ------------------------------------------------
+
+            if a <= transparency_limit:
+
+                result_pixels[x, y] = (
+                    transparent_rgb
+                )
+
+            # ------------------------------------------------
+            # VISIBLE
+            # RGB ASLI
+            # ------------------------------------------------
+
+            else:
+
+                result_pixels[x, y] = (
+                    r,
+                    g,
+                    b
+                )
+
+    return result
+    
     
 # ============================================================
 # PREPARE IMAGE FOR OUTPUT
@@ -362,10 +416,9 @@ def prepare_image_for_output(
                 background[2] == 255
             ):
 
-                return prepare_bmp_color_key(
+                return prepare_bmp_alpha_dither(
                     image,
-                    background,
-                    BMP_ALPHA_THRESHOLD
+                    background
                 )
 
             # ----------------------------------------------------
